@@ -7,8 +7,10 @@ FASTLED_USING_NAMESPACE;
 #include "Adafruit_LSM303_U.h"
 
 Adafruit_LSM303_Mag_Unified mag = Adafruit_LSM303_Mag_Unified(12345);
+Adafruit_LSM303_Accel_Unified accel = Adafruit_LSM303_Accel_Unified(54321);
 
 boolean magAvailable = false;
+boolean accelAvailable = false;
 
 #include "application.h"
 #include "math.h"
@@ -27,7 +29,9 @@ extern char* itoa(int a, char* buffer, unsigned char radix);
 #define DATA_PIN    D6
 // #define COLOR_ORDER RGB
 #define LED_TYPE    NEOPIXEL
-#define NUM_LEDS    24
+#define NUM_LEDS    48
+
+#define DECLINATION -0.1819
 
 CRGB leds[NUM_LEDS];
 
@@ -54,6 +58,8 @@ const PatternAndNameList patterns =
 {
   { alien,                  "Alien" },
   { heartBeat,              "Heartbeat" },
+  { tilt,                   "Tilt" },
+  { compass,                "Compass" },
   { hueCompass,             "Hue Compass" },
   { pride,                  "Pride" },
   { colorWaves,             "Color Waves" },
@@ -119,9 +125,11 @@ CRGBPalette16 targetPalette = palettes[paletteIndex];
 
 void setup()
 {
-  /* Enable auto-gain */
   mag.enableAutoRange(true);
   magAvailable = mag.begin();
+
+  accel.enableAutoRange(true);
+  accelAvailable = accel.begin();
 
   FastLED.addLeds<LED_TYPE,DATA_PIN>(leds, NUM_LEDS);
   FastLED.setCorrection(TypicalSMD5050);
@@ -154,9 +162,9 @@ void setup()
   else if (patternIndex >= patternCount)
       patternIndex = patternCount - 1;
 
-    r = EEPROM.read(2);
-    g = EEPROM.read(3);
-    b = EEPROM.read(4);
+  r = EEPROM.read(2);
+  g = EEPROM.read(3);
+  b = EEPROM.read(4);
 
   if(r == 0 && g == 0 && b == 0) {
       r = 0;
@@ -305,6 +313,86 @@ int setPatternIndex(String args)
     return patternIndex;
 }
 
+const float Pi = 3.14159;
+
+float getHeading() {
+  /* Get a new sensor event */
+  sensors_event_t event;
+  mag.getEvent(&event);
+
+  float Pi = 3.14159;
+
+  // Calculate the angle of the vector y,x
+  float heading = (atan2(event.magnetic.y,event.magnetic.x) * 180) / Pi;
+
+  // Normalize to 0-360
+  if (heading < 0)
+  {
+    heading = 360 + heading;
+  }
+
+  return heading;
+}
+
+float getTilt() {
+  /* Get a new sensor event */
+  sensors_event_t event;
+  accel.getEvent(&event);
+
+  float Pi = 3.14159;
+
+  // Calculate the angle of the vector y,x
+  float heading = (atan2(event.magnetic.y,event.magnetic.x) * 180) / Pi;
+
+  // Normalize to 0-360
+  if (heading < 0)
+  {
+    heading = 360 + heading;
+  }
+
+  return heading;
+}
+
+uint8_t tilt()
+{
+	if(!accelAvailable)
+	{
+		return rainbow();
+	}
+
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
+
+  float theta = getTilt();
+
+	uint8_t i = map(theta, 0, 360, 0, 24);
+  uint8_t hue = map(theta, 0, 360, 0, 256);
+
+  leds[i] = CHSV(hue, 255, 255);
+  leds[(NUM_LEDS - 1) - i] = CHSV(hue, 255, 255);
+
+	return 0;
+}
+
+uint8_t compass()
+{
+	if(!magAvailable)
+	{
+		return rainbow();
+	}
+
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
+
+  float theta = getHeading();
+
+	uint8_t i = map(theta, 0, 360, 0, 24);
+  uint8_t hue = map(theta, 0, 360, 0, 256);
+
+  leds[i] = CHSV(hue, 255, 255);
+  leds[(NUM_LEDS - 1) - i] = CHSV(hue, 255, 255);
+
+	return 0;
+}
+
 uint8_t hueCompass()
 {
 	if(!magAvailable)
@@ -312,22 +400,9 @@ uint8_t hueCompass()
 		return rainbow();
 	}
 
-	/* Get a new sensor event */
-	sensors_event_t event;
-	mag.getEvent(&event);
+  float theta = getHeading();
 
-	float Pi = 3.14159;
-
-	// Calculate the angle of the vector y,x
-	float heading = (atan2(event.magnetic.x, event.magnetic.z) * 180) / Pi;
-
-	// Normalize to 0-360
-	if (heading < 0)
-	{
-		heading = 360 + heading;
-	}
-
-	uint8_t hue = map(heading, 0, 360, 0, 255);
+	uint8_t hue = map(theta, 0, 360, 0, 256);
 
 	fill_solid(leds, NUM_LEDS, CHSV(hue, 255, 255));
 
