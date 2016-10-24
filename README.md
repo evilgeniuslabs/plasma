@@ -12,4 +12,4 @@ FastLED: https://github.com/FastLED/FastLED
 
 Build pics, videos, and details: https://goo.gl/photos/GFF6yLdpjBrtcw666
 
-Wi-Fi Remote Control App: http://evilgeniuslabs.org/plasma
+Wi-Fi Remote Control App: http://evilgeniuslabs.github.io/plasma
